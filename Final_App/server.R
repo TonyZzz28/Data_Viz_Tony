@@ -36,7 +36,7 @@ shinyServer(function(input, output, session) {
     
     ### first tab
     output$mytable = DT::renderDataTable({
-        IMDB[, input$show_vars, drop = FALSE]
+        req(IMDB)[, input$show_vars, drop = FALSE]
     })
     ### second tab
     output$histplot <- renderPlotly({
@@ -143,8 +143,13 @@ shinyServer(function(input, output, session) {
         fmovie <- filtered.movie()
         xv <- input$xvar
         yv <- input$yvar
-        if(input$coe =="Pearson correlation coefficient"){return(cor(filtered.movie()[,xv], filtered.movie()[,yv], 
-                                                                     method = "pearson"))}
+        if(input$coe =="Pearson correlation coefficient"){
+            r <- cor(filtered.movie()[,xv], filtered.movie()[,yv],
+                     method = "pearson")
+            df <- data.frame(r=r)
+            colnames(df) <- "Pearson correlation coeffcient"
+            return(df)
+        }
         if(input$coe =="Spearman correlation coefficient"){return(cor(filtered.movie()[,xv], filtered.movie()[,yv], 
                                                                       method = "spearman"))}
         if(input$coe =="Kendall's Tau"){return(cor(filtered.movie()[,xv], filtered.movie()[,yv], 
