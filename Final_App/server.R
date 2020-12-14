@@ -8,19 +8,147 @@
 #
 
 library(shiny)
+library(data.table)
+library(tidyverse)
+library(plotly)
+library(base)
+library(ggplot2)
 
-# Define server logic required to draw a histogram
-shinyServer(function(input, output) {
 
-    output$distPlot <- renderPlot({
+IMDB <- data.table::fread("IMDb movies.csv", stringsAsFactors = FALSE, drop = c("production_company", "description", "writer", "actors",
+                                                                                "imdb_title_id", "title"),
+                          data.table = FALSE)
+IMDB[] = lapply(IMDB, gsub, pattern="\\$", replacement="")
+IMDB <- IMDB[Reduce(`&`, lapply(IMDB, function(x) !(is.na(x)|x==""))),]
+IMDB$date_published <- as.Date(IMDB$date_published)
+IMDB <- IMDB %>% 
+    mutate_at(vars(year, duration, avg_vote, votes, budget, usa_gross_income, 
+                   worlwide_gross_income, metascore, reviews_from_users, reviews_from_critics), as.numeric)
+IMDB <- IMDB %>% drop_na()
+colnames(IMDB)[1] <- "title"
+colnames(IMDB)[11] <- "budget ($)"
+colnames(IMDB)[12] <- "u.s. revenue ($)"
+colnames(IMDB)[13] <- "worldwide revenue ($)"
 
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
 
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white')
 
+shinyServer(function(input, output, session) {
+    
+    ### first tab
+    output$mytable = DT::renderDataTable({
+        IMDB[, input$show_vars, drop = FALSE]
     })
-
+    ### second tab
+    output$histplot <- renderPlotly({
+        movie_year <- req(IMDB) %>%
+            filter(year >= input$year[1],
+                   year <= input$year[2])
+        if (input$genre != "All") {
+            movie_year <- movie_year %>% filter(grepl(input$genre, movie_year$genre, fixed = TRUE))
+        }
+        P <- ggplot(movie_year, aes(x=year)) + geom_histogram(color="black", fill="lightblue", binwidth = 1) +
+            coord_cartesian(expand=FALSE) + 
+            labs(x='release year', y='number of movies')+ 
+            theme_classic()
+        ggplotly(P)
+        
+    })
+    
+    ### third tab
+    output$dateUI <- renderUI({
+        mydates <- req(IMDB) %>% select(date_published) %>%
+            summarise(range=range(date_published, na.rm = TRUE))
+        begins <- mydates$range[1]
+        ends <- mydates$range[2]
+        dateRangeInput("daterange", "Release date range:",
+                       start = "2000-01-01",
+                       end   = "2005-01-01",
+                       min = begins,
+                       max = ends,
+                       format = "mm/dd/yy",
+                       separator = " - ")
+    })
+    
+    observeEvent(input$xvar,{
+        updateSelectInput(session, "xvar", choices=c("budget ($)", "u.s. revenue ($)", 
+                                                     "worldwide revenue ($)", "metascore", "avg_vote"))
+    },
+    once=TRUE)
+    
+    observeEvent(input$yvar,{
+        updateSelectInput(session, "yvar", choices=c("u.s. revenue ($)", "budget ($)", 
+                                                     "worldwide revenue ($)", "metascore", "avg_vote"))
+    },
+    once=TRUE)
+    
+    filtered.movie <- reactive(
+        if (input$genre2 != "All") {
+            filtered.movie <- req(IMDB) %>% filter(
+                duration >= input$runtime[1],
+                duration <= input$runtime[2],
+                date_published >= req(input$daterange[1]),
+                date_published <= req(input$daterange[2]),
+                grepl(input$genre2, IMDB$genre, fixed = TRUE))
+            return(filtered.movie)}
+        else{
+            filtered.movie <- req(IMDB) %>% filter(
+                duration >= input$runtime[1],
+                duration <= input$runtime[2],
+                date_published >= req(input$daterange[1]),
+                date_published <= req(input$daterange[2]))
+            return(filtered.movie)
+        }
+    )
+    
+    
+    
+    output$plot <- renderPlotly({
+        fit <- lm(get(input$yvar) ~ get(input$xvar), 
+                  data=filtered.movie())
+        filtered.movie2 <- filtered.movie() %>% mutate(linear=fit$fitted)
+        p2 <- 
+            plot_ly(
+                data = filtered.movie2,
+                type='scatter',
+                mode='markers',
+                x = ~get(input$xvar),
+                y = ~get(input$yvar),
+                marker = list(color = 'navyblue',
+                              opacity = 0.5,
+                              line = list(color = 'black')),
+                hovertemplate = paste0('<b>title:</b>',filtered.movie()$title, '<br>',
+                                       '<b>%{xaxis.title.text}:</b> %{x} <br>',
+                                       '<b>%{yaxis.title.text}:</b> %{y}',
+                                       '<extra></extra>'),
+                hoverlabel = list(bgcolor="white"),
+                hoverinfo = 'text') %>%
+            layout(
+                xaxis = list(title=input$xvar, zeroline=FALSE),
+                yaxis = list(title=input$yvar, zeroline=FALSE),
+                showlegend = F)
+        
+        if(input$linear){
+            return(p2 %>% add_lines(x=~get(input$xvar),y=~linear, name ="linear trend",mode = 'lines', 
+                                    inherit = FALSE, data = filtered.movie2))
+        } else{
+            return(p2)
+        }
+        
+    })
+    
+    output$n_movies <- renderText({ 
+        nrow(filtered.movie()) })
+    
+    output$table1 <- renderTable({
+        fmovie <- filtered.movie()
+        xv <- input$xvar
+        yv <- input$yvar
+        if(input$coe =="Pearson correlation coefficient"){return(cor(filtered.movie()[,xv], filtered.movie()[,yv], 
+                                                                     method = "pearson"))}
+        if(input$coe =="Spearman correlation coefficient"){return(cor(filtered.movie()[,xv], filtered.movie()[,yv], 
+                                                                      method = "spearman"))}
+        if(input$coe =="Kendall's Tau"){return(cor(filtered.movie()[,xv], filtered.movie()[,yv], 
+                                                   method = "kendall"))}
+    })
+    
 })
