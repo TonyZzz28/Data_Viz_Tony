@@ -76,9 +76,8 @@ shinyUI(fluidPage(
                                         textOutput("n_movies")
                                    )),
                                wellPanel(
-                                   span("Statistic for measuring relationship:",
-                                        tableOutput("table1")
-                                   )), 
+                                 tableOutput("table1")
+                                   ), 
                                
                         )
                         

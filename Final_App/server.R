@@ -9,12 +9,13 @@
 
 library(shiny)
 library(data.table)
-library(tidyverse)
+#library(tidyverse)
+library(dplyr)
 library(plotly)
 library(base)
 library(ggplot2)
 
-
+#setwd("~/Documents/Data Visualization/shiny_final/Data_Viz_Tony/Final_App")
 IMDB <- data.table::fread("IMDb movies.csv", stringsAsFactors = FALSE, drop = c("production_company", "description", "writer", "actors",
                                                                                 "imdb_title_id", "title"),
                           data.table = FALSE)
@@ -56,17 +57,19 @@ shinyServer(function(input, output, session) {
     
     ### third tab
     output$dateUI <- renderUI({
-        mydates <- req(IMDB) %>% select(date_published) %>%
+        mydates <- req(IMDB) %>% 
+            select(date_published) %>%
             summarise(range=range(date_published, na.rm = TRUE))
         begins <- mydates$range[1]
         ends <- mydates$range[2]
         dateRangeInput("daterange", "Release date range:",
                        start = "2000-01-01",
-                       end   = "2005-01-01",
+                       end   = "2010-01-01",
                        min = begins,
                        max = ends,
                        format = "mm/dd/yy",
                        separator = " - ")
+        
     })
     
     observeEvent(input$xvar,{
@@ -83,15 +86,17 @@ shinyServer(function(input, output, session) {
     
     filtered.movie <- reactive(
         if (input$genre2 != "All") {
-            filtered.movie <- req(IMDB) %>% filter(
+            filtered.movie <- req(IMDB) %>% 
+                filter(
                 duration >= input$runtime[1],
                 duration <= input$runtime[2],
                 date_published >= req(input$daterange[1]),
                 date_published <= req(input$daterange[2]),
-                grepl(input$genre2, IMDB$genre, fixed = TRUE))
+                grepl(input$genre2, req(IMDB)$genre, fixed = TRUE))
             return(filtered.movie)}
         else{
-            filtered.movie <- req(IMDB) %>% filter(
+            filtered.movie <- req(IMDB) %>% 
+                filter(
                 duration >= input$runtime[1],
                 duration <= input$runtime[2],
                 date_published >= req(input$daterange[1]),
@@ -148,12 +153,29 @@ shinyServer(function(input, output, session) {
                      method = "pearson")
             df <- data.frame(r=r)
             colnames(df) <- "Pearson correlation coeffcient"
+            name.width <- max(sapply(names(df), nchar))
+            df <- format(df, width = name.width, justify = "centre")
             return(df)
         }
-        if(input$coe =="Spearman correlation coefficient"){return(cor(filtered.movie()[,xv], filtered.movie()[,yv], 
-                                                                      method = "spearman"))}
-        if(input$coe =="Kendall's Tau"){return(cor(filtered.movie()[,xv], filtered.movie()[,yv], 
-                                                   method = "kendall"))}
+        if(input$coe =="Spearman correlation coefficient"){
+            r <- cor(filtered.movie()[,xv], filtered.movie()[,yv],method = "spearman")
+            df <- data.frame(r=r)
+            colnames(df) <- "Spearman correlation coeffcient"
+            name.width <- max(sapply(names(df), nchar))
+            df <- format(df, width = name.width, justify = "centre")
+            return(df)
+            }
+        if(input$coe =="Kendall's Tau"){
+            r <- cor(filtered.movie()[,xv], filtered.movie()[,yv], method = "kendall")
+            df <- data.frame(r=r)
+            colnames(df) <- "Kendall's Tau"
+            name.width <- max(sapply(names(df), nchar))
+            df <- format(df, width = name.width, justify = "centre")
+            return(df)
+            }
     })
+    
+    
+    
     
 })
