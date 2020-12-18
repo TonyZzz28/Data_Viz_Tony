@@ -25,6 +25,7 @@ IMDB <- IMDB %>%
 IMDB <- IMDB %>% drop_na()
 colnames(IMDB)[1] <- "title"
 colnames(IMDB)[3] <- "date"
+colnames(IMDB)[8] <- "average vote"
 colnames(IMDB)[9] <- "budget ($)"
 colnames(IMDB)[10] <- "u.s. revenue ($)"
 colnames(IMDB)[11] <- "worldwide revenue ($)"

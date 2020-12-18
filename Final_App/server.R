@@ -9,13 +9,11 @@
 
 library(shiny)
 library(data.table)
-#library(tidyverse)
 library(dplyr)
 library(plotly)
 library(base)
 library(ggplot2)
 
-#setwd("~/Documents/Data Visualization/shiny_final/Data_Viz_Tony/Final_App")
 IMDB <- data.table::fread("IMDb movies.csv", stringsAsFactors = FALSE, drop = c("production_company", "description", "writer", "actors",
                                                                                 "imdb_title_id", "title", "reviews_from_users", "reviews_from_critics",
                                                                                 "language", "votes"),
@@ -29,6 +27,7 @@ IMDB <- IMDB %>%
 IMDB <- IMDB %>% drop_na()
 colnames(IMDB)[1] <- "title"
 colnames(IMDB)[3] <- "date"
+colnames(IMDB)[8] <- "average vote"
 colnames(IMDB)[9] <- "budget ($)"
 colnames(IMDB)[10] <- "u.s. revenue ($)"
 colnames(IMDB)[11] <- "worldwide revenue ($)"
@@ -75,13 +74,13 @@ shinyServer(function(input, output, session) {
     
     observeEvent(input$xvar,{
         updateSelectInput(session, "xvar", choices=c("budget ($)", "u.s. revenue ($)", 
-                                                     "worldwide revenue ($)", "metascore", "avg_vote"))
+                                                     "worldwide revenue ($)", "metascore", "average vote"))
     },
     once=TRUE)
     
     observeEvent(input$yvar,{
         updateSelectInput(session, "yvar", choices=c("u.s. revenue ($)", "budget ($)", 
-                                                     "worldwide revenue ($)", "metascore", "avg_vote"))
+                                                     "worldwide revenue ($)", "metascore", "average vote"))
     },
     once=TRUE)
     
