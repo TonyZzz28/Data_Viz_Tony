@@ -17,19 +17,21 @@ library(ggplot2)
 
 #setwd("~/Documents/Data Visualization/shiny_final/Data_Viz_Tony/Final_App")
 IMDB <- data.table::fread("IMDb movies.csv", stringsAsFactors = FALSE, drop = c("production_company", "description", "writer", "actors",
-                                                                                "imdb_title_id", "title"),
+                                                                                "imdb_title_id", "title", "reviews_from_users", "reviews_from_critics",
+                                                                                "language", "votes"),
                           data.table = FALSE)
 IMDB[] = lapply(IMDB, gsub, pattern="\\$", replacement="")
 IMDB <- IMDB[Reduce(`&`, lapply(IMDB, function(x) !(is.na(x)|x==""))),]
 IMDB$date_published <- as.Date(IMDB$date_published)
 IMDB <- IMDB %>% 
-    mutate_at(vars(year, duration, avg_vote, votes, budget, usa_gross_income, 
-                   worlwide_gross_income, metascore, reviews_from_users, reviews_from_critics), as.numeric)
+    mutate_at(vars(year, duration, avg_vote, budget, usa_gross_income, 
+                   worlwide_gross_income, metascore), as.numeric)
 IMDB <- IMDB %>% drop_na()
 colnames(IMDB)[1] <- "title"
-colnames(IMDB)[11] <- "budget ($)"
-colnames(IMDB)[12] <- "u.s. revenue ($)"
-colnames(IMDB)[13] <- "worldwide revenue ($)"
+colnames(IMDB)[3] <- "date"
+colnames(IMDB)[9] <- "budget ($)"
+colnames(IMDB)[10] <- "u.s. revenue ($)"
+colnames(IMDB)[11] <- "worldwide revenue ($)"
 
 
 
@@ -52,14 +54,13 @@ shinyServer(function(input, output, session) {
             labs(x='release year', y='number of movies')+ 
             theme_classic()
         ggplotly(P)
-        
     })
     
     ### third tab
     output$dateUI <- renderUI({
         mydates <- req(IMDB) %>% 
-            select(date_published) %>%
-            summarise(range=range(date_published, na.rm = TRUE))
+            select(date) %>%
+            summarise(range=range(date, na.rm = TRUE))
         begins <- mydates$range[1]
         ends <- mydates$range[2]
         dateRangeInput("daterange", "Release date range:",
@@ -90,8 +91,8 @@ shinyServer(function(input, output, session) {
                 filter(
                 duration >= input$runtime[1],
                 duration <= input$runtime[2],
-                date_published >= req(input$daterange[1]),
-                date_published <= req(input$daterange[2]),
+                date >= req(input$daterange[1]),
+                date <= req(input$daterange[2]),
                 grepl(input$genre2, req(IMDB)$genre, fixed = TRUE))
             return(filtered.movie)}
         else{
@@ -99,8 +100,8 @@ shinyServer(function(input, output, session) {
                 filter(
                 duration >= input$runtime[1],
                 duration <= input$runtime[2],
-                date_published >= req(input$daterange[1]),
-                date_published <= req(input$daterange[2]))
+                date >= req(input$daterange[1]),
+                date <= req(input$daterange[2]))
             return(filtered.movie)
         }
     )
@@ -174,8 +175,7 @@ shinyServer(function(input, output, session) {
             return(df)
             }
     })
-    
-    
-    
-    
 })
+
+
+

@@ -13,19 +13,21 @@ library(DT)
 library(data.table)
 library(tidyverse)
 IMDB <- data.table::fread("IMDb movies.csv", stringsAsFactors = FALSE, drop = c("production_company", "description", "writer", "actors",
-                                                                                "imdb_title_id", "title"),
+                                                                                "imdb_title_id", "title","reviews_from_users", "reviews_from_critics",
+                                                                                "language", "votes"),
                           data.table = FALSE)
 IMDB[] = lapply(IMDB, gsub, pattern="\\$", replacement="")
 IMDB <- IMDB[Reduce(`&`, lapply(IMDB, function(x) !(is.na(x)|x==""))),]
 IMDB$date_published <- as.Date(IMDB$date_published)
 IMDB <- IMDB %>% 
-    mutate_at(vars(year, duration, avg_vote, votes, budget, usa_gross_income, 
-                   worlwide_gross_income, metascore, reviews_from_users, reviews_from_critics), as.numeric)
+    mutate_at(vars(year, duration, avg_vote, budget, usa_gross_income, 
+                   worlwide_gross_income, metascore), as.numeric)
 IMDB <- IMDB %>% drop_na()
 colnames(IMDB)[1] <- "title"
-colnames(IMDB)[11] <- "budget ($)"
-colnames(IMDB)[12] <- "u.s. revenue ($)"
-colnames(IMDB)[13] <- "worldwide revenue ($)"
+colnames(IMDB)[3] <- "date"
+colnames(IMDB)[9] <- "budget ($)"
+colnames(IMDB)[10] <- "u.s. revenue ($)"
+colnames(IMDB)[11] <- "worldwide revenue ($)"
 
 # Define UI for application that draws a histogram
 shinyUI(fluidPage(
